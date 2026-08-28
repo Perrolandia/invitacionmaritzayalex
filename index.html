@@ -2924,12 +2924,12 @@ video {
   <a href="#recuerdos" data-nav="recuerdos" class="p-3 rounded-full text-mocha/50 hover:text-matte-gold hover:bg-sand-beige/50 transition-all" title="Recuerdos"><span class="material-symbols-outlined text-xl">photo_camera</span></a>
 </nav>
 
-<!-- ============ RSVP → Google Sheets — PENDIENTE: pegar la URL del Apps Script ============ -->
+<!-- ============ RSVP → Google Sheets ============ -->
+<iframe name="hidden-rsvp-iframe" style="display:none"></iframe>
 <script>
-  // Pega aquí la URL que te da Google al desplegar el Apps Script (termina en /exec)
   const RSVP_SHEET_URL = "https://script.google.com/macros/s/AKfycbxaSqDx9IfWn3go2TFK5nimoGEbTNVoZDsBUux76ZyB4mP39Lu29Qx4cfwXdezFCOYBBQ/exec";
 
-  window.enviarRSVP = async function(e) {
+  window.enviarRSVP = function(e) {
     e.preventDefault();
     const nombre = document.getElementById('rsvp-nombre').value.trim();
     const asisteInput = document.querySelector('input[name="attendance"]:checked');
@@ -2942,29 +2942,36 @@ video {
     const registro = {
       nombre,
       asiste: asisteInput.value === 'yes' ? 'Sí' : 'No',
-      acompanantes: Number(document.getElementById('rsvp-acompanantes').value),
+      acompanantes: document.getElementById('rsvp-acompanantes').value,
       restricciones: document.getElementById('rsvp-restricciones').value.trim(),
       fecha: new Date().toLocaleString('es-MX', { timeZone: 'America/Cancun' })
     };
-    try {
-      if (RSVP_SHEET_URL && RSVP_SHEET_URL !== "PENDIENTE") {
-        await fetch(RSVP_SHEET_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(registro)
-        });
-      } else {
-        console.log("RSVP (Google Sheets aún no conectado):", registro);
-      }
-      status.textContent = '¡Gracias! Tu confirmación fue recibida.';
-      status.className = 'text-center text-sm text-olive';
-      document.getElementById('rsvp-form').reset();
-    } catch (err) {
-      console.error(err);
-      status.textContent = 'Hubo un problema al enviar. Intenta de nuevo.';
-      status.className = 'text-center text-sm text-red-600';
+
+    if (RSVP_SHEET_URL && RSVP_SHEET_URL !== "PENDIENTE") {
+      // Formulario oculto que apunta a un iframe invisible — evita los problemas
+      // de CORS/redirección que fetch() tiene con Google Apps Script.
+      const formEnvio = document.createElement('form');
+      formEnvio.method = 'POST';
+      formEnvio.action = RSVP_SHEET_URL;
+      formEnvio.target = 'hidden-rsvp-iframe';
+      formEnvio.style.display = 'none';
+      Object.entries(registro).forEach(([clave, valor]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = clave;
+        input.value = valor;
+        formEnvio.appendChild(input);
+      });
+      document.body.appendChild(formEnvio);
+      formEnvio.submit();
+      setTimeout(() => document.body.removeChild(formEnvio), 1000);
+    } else {
+      console.log("RSVP (Google Sheets aún no conectado):", registro);
     }
+
+    status.textContent = '¡Gracias! Tu confirmación fue recibida.';
+    status.className = 'text-center text-sm text-olive';
+    document.getElementById('rsvp-form').reset();
     return false;
   }
 </script>
